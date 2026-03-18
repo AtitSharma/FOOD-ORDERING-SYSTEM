@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+
+<!-- Single Page Header start -->
+<div class="container-fluid page-header py-5">
+    <h1 class="text-center text-white display-6">Cart</h1>
+</div>
+<!-- Single Page Header End -->
+
+<!-- Cart Page Start -->
+<div class="container-fluid py-5">
+    <div class="container py-5">
+        {% csrf_token %}
+        <div class="table-responsive">
+            <table class="table" id="cart-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Products</th>
+                        <th scope="col">Name</th>
+                        <th scope="col">Price</th>
+                        <th scope="col">Quantity</th>
+                        <th scope="col">Total</th>
+                        <th scope="col">Handle</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in cart_items %}
+                    <tr data-price="{{ item.food.price }}" data-product-id="{{ item.food.id }}">
+                        <th scope="row">
+                            <div class="d-flex align-items-center">
+                                <img src="{{ item.food.food_image.first.image.url }}" class="img-fluid me-5 rounded-circle" style="width: 80px; height: 80px;" alt="">
+                            </div>
+                        </th>
+                        <td>
+                            <p class="mb-0 mt-4">{{ item.food.name }}</p>
+                        </td>
+                        <td>
+                            <p class="mb-0 mt-4 price">Rs. {{ item.food.price }}</p>
+                        </td>
+                        <td>
+                            <div class="input-group quantity mt-4" style="width: 100px;">
+                                <div class="input-group-btn">
+                                    <button class="btn btn-sm btn-minus rounded-circle bg-light border">
+                                        <i class="fa fa-minus"></i>
+                                    </button>
+                                </div>
+                                <input type="text" class="form-control form-control-sm text-center border-0 qty-input" value="{{ item.quantity }}">
+                                <div class="input-group-btn">
+                                    <button class="btn btn-sm btn-plus rounded-circle bg-light border">
+                                        <i class="fa fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <p class="mb-0 mt-4 row-total">0</p>
+                        </td>
+                        <td>
+                            <a href="{% url 'restaurant_management:cart_delete' item.table.table_unique_id item.id %}">
+                                <button class="btn btn-md rounded-circle bg-light border mt-4 btn-remove">
+                                    <i class="fa fa-times text-danger"></i>
+                                </button>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Totals -->
+        <div class="row g-4 justify-content-end">
+            <div class="col-8"></div>
+            <div class="col-sm-8 col-md-7 col-lg-6 col-xl-4">
+                <div class="bg-light rounded">
+                    <div class="p-4">
+                        <h1 class="display-6 mb-4">Cart <span class="fw-normal">Total</span></h1>
+                        <div class="d-flex justify-content-between mb-4">
+                            <h5 class="mb-0 me-4">Subtotal:</h5>
+                            <p class="mb-0" id="subtotal">0</p>
+                        </div>
+                    </div>
+                    <div class="py-4 mb-4 border-top border-bottom d-flex justify-content-between">
+                        <h5 class="mb-0 ps-4 me-4">Total</h5>
+                        <p class="mb-0 pe-4" id="grandtotal">0</p>
+                    </div>
+                    <button class="btn border-secondary rounded-pill px-4 py-3 text-primary text-uppercase mb-4 ms-4" type="button">Place Order</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Cart Page End -->
+
+<!-- CSRF Helper -->
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            cookie = cookie.trim();
+            if (cookie.startsWith(name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+const csrftoken = getCookie('csrftoken');
+</script>
+
+<!-- Cart JS -->
+<script>
+// Recalculate row totals and cart totals
+function recalcCart() {
+    let subtotal = 0;
+    document.querySelectorAll('#cart-table tbody tr').forEach(tr => {
+        const price = parseFloat(tr.dataset.price);
+        const qty = parseInt(tr.querySelector('.qty-input').value);
+        const total = (price * qty).toFixed(2);
+        tr.querySelector('.row-total').innerText = total;
+        subtotal += parseFloat(total);
+    });
+    document.getElementById('subtotal').innerText = subtotal.toFixed(2);
+    document.getElementById('grandtotal').innerText = subtotal.toFixed(2);
+}
+
+// Update backend DB via API
+async function updateCart(productId, quantity) {
+    try {
+        const response = await fetch(`/cart/add/{{ table_id }}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({ product_id: productId, quantity: quantity })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.total_cart_items !== undefined) {
+                document.querySelector('.cart-count').textContent = data.total_cart_items;
+            }
+        } else {
+            console.error('Failed to update cart.');
+        }
+    } catch (err) {
+        console.error('Error:', err);
+    }
+}
+
+// Handle plus/minus buttons
+document.querySelectorAll('#cart-table tbody tr').forEach(tr => {
+    const minusBtn = tr.querySelector('.btn-minus');
+    const plusBtn = tr.querySelector('.btn-plus');
+    const input = tr.querySelector('.qty-input');
+    const productId = tr.dataset.productId;
+
+    minusBtn.addEventListener('click', () => {
+        let val = parseInt(input.value) || 1;
+        if (val > 1) val--;
+        input.value = val;
+        recalcCart();
+        updateCart(productId, val);
+    });
+
+    plusBtn.addEventListener('click', () => {
+        let val = parseInt(input.value) || 1;
+        if (val < 10) val++;
+        input.value = val;
+        recalcCart();
+        updateCart(productId, val);
+    });
+
+    // Manual input
+    input.addEventListener('input', () => {
+        let val = parseInt(input.value) || 1;
+        if (val < 1) val = 1;
+        else if (val > 10) val = 10;
+        input.value = val;
+        recalcCart();
+        updateCart(productId, val);
+    });
+});
+
+// Handle row removal
+document.querySelectorAll('.btn-remove').forEach(btn => {
+    btn.addEventListener('click', e => {
+        const tr = btn.closest('tr');
+        tr.remove();
+        recalcCart();
+    });
+});
+
+// Initial calculation
+recalcCart();
+</script>
+
+{% endblock %}

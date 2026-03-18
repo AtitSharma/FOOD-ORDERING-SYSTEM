@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+
+<!-- Hero Start -->
+<div class="container-fluid py-5 mb-5 hero-header">
+    {% csrf_token %}
+    <div class="container py-5">
+        <div class="row g-5 align-items-center">
+            <div class="col-md-12 col-lg-7">
+                <h4 class="mb-3 text-secondary">I am ready to cook for you</h4>
+                <h1 class="mb-5 display-3 text-primary">These are our today's specials.</h1>
+            </div>
+            <div class="col-md-12 col-lg-5">
+                <div id="carouselId" class="carousel slide position-relative" data-bs-ride="carousel">
+                    <div class="carousel-inner" role="listbox">
+                        <div class="carousel-item active rounded">
+                            <img src="{% static 'img/hero-img-1.png' %}" class="img-fluid w-100 h-100 bg-secondary rounded">
+                        </div>
+                        <div class="carousel-item rounded">
+                            <img src="{% static 'img/hero-img-2.jpg' %}" class="img-fluid w-100 h-100 rounded">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Hero End -->
+
+<!-- Fruits Shop Start-->
+<div class="container-fluid fruite py-5">
+    <div class="container py-5">
+        <div class="tab-class text-center">
+            <div class="row g-4">
+                <div class="col-lg-4 text-start">
+                    <h1>Our Organic Products</h1>
+                </div>
+
+                <div class="col-lg-8 text-end">
+                    <ul class="nav nav-pills d-inline-flex text-center mb-5">
+
+                        <!-- All -->
+                        <li class="nav-item">
+                            <a class="d-flex m-2 py-2 bg-light rounded-pill active category-btn"
+                               data-id="" href="javascript:void(0)">
+                                <span class="text-dark" style="width: 130px;">All Products</span>
+                            </a>
+                        </li>
+
+                        {% for category in categories %}
+                        <li class="nav-item">
+                            <a class="d-flex py-2 m-2 bg-light rounded-pill category-btn"
+                               data-id="{{category.id}}" href="javascript:void(0)">
+                                <span class="text-dark" style="width: 130px;">
+                                    {{category.name}}
+                                </span>
+                            </a>
+                        </li>
+                        {% endfor %}
+
+                    </ul>
+                </div>
+            </div>
+
+            <div class="tab-content">
+                <div id="tab-1" class="tab-pane fade show p-0 active">
+                    <div class="row g-4">
+                        <div class="col-lg-12">
+                            
+                            <!-- ✅ IMPORTANT: added id -->
+                            <div class="row g-4" id="food-container">
+                                <!-- Dynamic products will come here -->
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>      
+    </div>
+</div>
+
+
+
+
+
+
+<!-- ✅ JS (ONLY ADDITION) -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    function fetchFoods(categoryId = null) {
+        let url = "/foods/";
+
+        if (categoryId) {
+            url += `?category=${categoryId}`;
+        }
+        fetch(url)
+            .then(res => res.json())
+            .then(data => renderFoods(data))
+            .catch(err => console.error(err));
+    }
+
+    function renderFoods(foods) {
+        const container = document.getElementById("food-container");
+        container.innerHTML = "";
+
+        foods.forEach(food => {
+
+            // ✅ get first image safely
+            let imageUrl = "";
+            if (food.images && food.images.length > 0) {
+                imageUrl = food.images[0];
+            } else {
+                imageUrl = "https://www.w3schools.com/images/picture.jpg"; // fallback
+            }
+
+    container.innerHTML += `
+    <div class="col-md-6 col-lg-4 col-xl-3">
+        <div class="rounded position-relative fruite-item" data-product-id="${food.id}">
+            <div class="fruite-img">
+                <img src="${imageUrl}" class="img-fluid w-100 rounded-top">
+            </div>
+            <div class="text-white bg-secondary px-3 py-1 rounded position-absolute"
+                style="top: 10px; left: 10px;">
+                ${food.category_name || 'Food'}
+            </div>
+            <div class="p-4 border border-secondary border-top-0 rounded-bottom">
+                <h4>${food.name}</h4>
+                <div class="d-flex justify-content-between flex-lg-wrap align-items-center">
+                    <p class="text-dark fs-5 fw-bold mb-0 unit-price" data-price="${food.price}">Rs.${food.price}</p>
+                    <div class="d-flex align-items-center">
+                        <button class="btn btn-outline-primary btn-sm minus-btn">-</button>
+                        <input type="text" value="1" class="form-control text-center mx-1 quantity-input" style="width:50px;">
+                        <button class="btn btn-outline-primary btn-sm plus-btn">+</button>
+                        <button class="btn border border-secondary rounded-pill px-3 text-primary ms-2 add-to-cart-btn">
+                            <i class="fa fa-shopping-bag me-2 text-primary"></i> Add
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    `;
+
+    // JS to handle quantity and price update
+container.querySelectorAll('.fruite-item').forEach(item => {
+    const minusBtn = item.querySelector('.minus-btn');
+    const plusBtn = item.querySelector('.plus-btn');
+    const qtyInput = item.querySelector('.quantity-input');
+    const priceEl = item.querySelector('.unit-price');
+    const unitPrice = parseFloat(priceEl.dataset.price);
+    const addBtn = item.querySelector('.add-to-cart-btn');
+
+    // Assuming each food object has an ID
+    const productId = parseInt(item.dataset.productId);
+
+    const updatePrice = () => {
+        const qty = parseInt(qtyInput.value);
+        priceEl.textContent = `Rs.${(unitPrice * qty).toFixed(2)}`;
+    };
+
+    minusBtn.addEventListener('click', () => {
+        let current = parseInt(qtyInput.value);
+        if (current > 1) {
+            qtyInput.value = current - 1;
+            updatePrice();
+        }
+    });
+
+    plusBtn.addEventListener('click', () => {
+        let current = parseInt(qtyInput.value);
+        if (current < 10) {
+            qtyInput.value = current + 1;
+            updatePrice();
+        }
+    });
+
+    qtyInput.addEventListener('input', () => {
+        let value = parseInt(qtyInput.value);
+        if (isNaN(value) || value < 1) qtyInput.value = 1;
+        else if (value > 10) qtyInput.value = 10;
+        updatePrice();
+    });
+
+    // Add to cart API call
+    addBtn.addEventListener('click', async () => {
+        const quantity = parseInt(qtyInput.value);
+        const payload = {
+            product_id: productId,
+            quantity: quantity
+        };
+
+        try {
+            const response = await fetch('/cart/add/{{table_id}}/', { 
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                window.location.reload();
+                
+                // Optional: update floating cart count here
+                // document.querySelector('.cart-count').textContent = data.total_cart_items;
+            } else {
+                alert('Failed to add to cart.');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    });
+});
+            });
+        }
+
+    // Category click
+    document.querySelectorAll(".category-btn").forEach(btn => {
+        btn.addEventListener("click", function () {
+
+            // active switch (kept your classes intact)
+            document.querySelectorAll(".category-btn").forEach(b => b.classList.remove("active"));
+            this.classList.add("active");
+
+            let categoryId = this.getAttribute("data-id");
+
+            if (!categoryId) {
+                fetchFoods();
+            } else {
+                fetchFoods(categoryId);
+            }
+        });
+    });
+
+    // Initial load
+    fetchFoods();
+});
+
+
+
+
+
+    const TABLE_ID_FROM_SERVER = "{{ table_id }}";
+
+    if (TABLE_ID_FROM_SERVER) {
+        localStorage.setItem("table_id", TABLE_ID_FROM_SERVER);
+    }
+
+
+    function getTableId() {
+    return localStorage.getItem("table_id");
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    const tableId = getTableId();
+    const homeLink = document.getElementById("home-link");
+
+    if (tableId) {
+        homeLink.href = `/home/${tableId}/`;
+    } else {
+        homeLink.href = "/";  // fallback
+    }
+});
+
+
+
+</script>
+
+{% endblock %}
+
+
+
