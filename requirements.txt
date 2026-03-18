@@ -1,0 +1,8 @@
+asgiref==3.11.1
+Django==5.2.12
+django-decouple==2.1
+dnslib==0.9.26
+pillow==12.1.1
+psycopg2==2.9.11
+qrcode==8.2
+sqlparse==0.5.5
